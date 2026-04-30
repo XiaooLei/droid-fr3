@@ -20,3 +20,34 @@ This guide has been used to set up 18 DROID robot platforms over the course of t
 3. [Example Workflows to collect data or calibrate cameras](https://droid-dataset.github.io/droid/docs/example-workflows)
 
 If you encounter issues during setup, please raise them as issues in this github repo.
+
+---------
+## Franka FR3 Adaptation
+
+This fork has been adapted for **Franka Research 3 (FR3)** robots, replacing the original Panda-specific dependencies with a more flexible, modern implementation.
+
+### Key Changes
+
+| Component | Original | FR3 Version |
+|-----------|----------|-------------|
+| **Robot Control SDK** | polymetis (USB/PCIe) | [Franky](https://github.com/frankaemika/franky-python) (TCP/IP) |
+| **Base OS** | Ubuntu 18.04 | Ubuntu 22.04 |
+| **Python** | 3.7 | 3.10 |
+
+### New Features
+
+- **FrankyRobot** class (`droid/franka/franky_robot.py`) - TCP/IP control of FR3
+- **Robotiq 2F gripper** support via `pyrobotiqgripper`
+- **IK solver enhancements** - `cartesian_position_to_joint_position` method
+- **Zed camera robustness** - Skip unavailable cameras gracefully
+
+### Configuration
+
+Configuration for FR3 is done via environment variables:
+
+```
+ROBOT_IP=172.16.0.3                 # FR3 robot IP address
+GRIPPER_COM_PORT=/dev/ttyUSB0       # Robotiq gripper serial port (optional)
+```
+
+See `droid/misc/parameters.py` for all configurable parameters.
