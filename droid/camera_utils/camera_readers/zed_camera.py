@@ -20,6 +20,9 @@ def gather_zed_cameras():
         return []
 
     for cam in cameras:
+        # Skip cameras that are not available
+        if cam.camera_state != sl.CAMERA_STATE.AVAILABLE:
+            continue
         cam = ZedCamera(cam)
         all_zed_cameras.append(cam)
 

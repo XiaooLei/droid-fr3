@@ -76,12 +76,6 @@ export VARIED_CAMERA_2_ID=$varied_camera_2_id
 export UBUNTU_PRO_TOKEN=$ubuntu_pro_token
 rm temp_env_vars.sh
 
-if [ "$ROBOT_TYPE" == "panda" ]; then
-        export LIBFRANKA_VERSION=0.9.0
-else
-        export LIBFRANKA_VERSION=0.10.0
-fi
-
 # build control server container 
 
 read -p "Do you want to rebuild the container image? (yes/no): " first_time

@@ -1,30 +1,30 @@
-# pull ubuntu base image
-FROM ubuntu:bionic
+# Ubuntu 22.04 base for Franka FR3 robot control with Franky
+FROM ubuntu:22.04
 
 # build args
-ARG ROBOT_TYPE=${ROBOT_TYPE}
-ARG LIBFRANKA_VERSION=${LIBFRANKA_VERSION}
-ARG ROBOT_IP=${ROBOT_IP} 
-ARG NUC_IP=${NUC_IP}
-ARG NUC_POLYMETIS_DIR=/app/droid/fairo/polymetis
-ARG NUC_ROBOT_CONFIG_DIR=/app/config/${ROBOT_TYPE}
-ARG NUC_POLYMETIS_CONFIG_DIR=${NUC_POLYMETIS_DIR}/polymetis/conf
+ARG ROBOT_TYPE=fr3
+ARG ROBOT_IP=172.16.0.3
+ARG NUC_IP=172.16.0.2
+ARG LAPTOP_IP=172.16.0.1
 
 # runtime env vars
 ENV ROBOT_TYPE=${ROBOT_TYPE}
-ENV LIBFRANKA_VERSION=${LIBFRANKA_VERSION}
-ENV ROBOT_IP=${ROBOT_IP} 
+ENV ROBOT_IP=${ROBOT_IP}
 ENV NUC_IP=${NUC_IP}
+ENV LAPTOP_IP=${LAPTOP_IP}
+ENV DEBIAN_FRONTEND=noninteractive
 
-# base system installations
-RUN apt-get update && \
+# base system installations with Aliyun mirror
+RUN sed -i 's|archive.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    sed -i 's|security.ubuntu.com|mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    apt-get update && \
     apt-get install -y software-properties-common build-essential sudo git curl wget python3-pip libspdlog-dev \
-    libeigen3-dev lsb-release ffmpeg libsm6 libxext6 && \
-    apt-get upgrade -y 
+    libeigen3-dev lsb-release ffmpeg libsm6 libxext6 libgl1-mesa-dev libglu1-mesa-dev libosmesa6 && \
+    apt-get upgrade -y
 
-# install latest cmake version
+# install latest cmake
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' && \  
+    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' && \
     apt-get update && \
     apt-get install -y cmake
 
@@ -32,50 +32,51 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
 COPY . /app
 WORKDIR /app
 
-# install miniconda 
+# install miniconda (Python 3.10+)
 RUN wget \
     https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
+
 ENV PATH /root/miniconda3/bin:$PATH
 
-# setup polymetis conda env
-WORKDIR ${NUC_POLYMETIS_DIR}
-RUN conda env create -f ./polymetis/environment.yml && \
-    conda run -n polymetis-local pip install -e ./polymetis
-SHELL ["conda", "run", "-n", "polymetis-local", "/bin/bash", "-c"]
+# Configure pip and upgrade
+RUN pip3 install --upgrade pip
 
-# build libfranka and polymetis
-RUN ./scripts/build_libfranka.sh ${LIBFRANKA_VERSION} && \
-    mkdir -p ./polymetis/build && \
-    cd ./polymetis/build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_FRANKA=ON -DBUILD_TESTS=ON -DBUILD_DOCS=ON && \
-    make -j
+# Install franky-control (for FR3 robot control via TCP)
+RUN pip3 install franky-control
 
-# set polymetis config files
-WORKDIR /app
-RUN cp ${NUC_ROBOT_CONFIG_DIR}/franka_hardware.yaml ${NUC_POLYMETIS_CONFIG_DIR}/robot_client/franka_hardware.yaml && \
-    cp ${NUC_ROBOT_CONFIG_DIR}/franka_panda.yaml ${NUC_POLYMETIS_CONFIG_DIR}/robot_model/franka_panda.yaml
+# Install pyrobotiqgripper (for Robotiq 2F gripper control via USB)
+RUN pip3 install pyrobotiqgripper
 
-# python environment setup 
-RUN pip3 install -e . && \
-    pip3 install dm-robotics-moma==0.5.0 --no-deps && \
-    pip3 install dm-robotics-transformations==0.5.0 --no-deps && \
-    pip3 install dm-robotics-agentflow==0.5.0 --no-deps && \
-    pip3 install dm-robotics-geometry==0.5.0 --no-deps && \
-    pip3 install dm-robotics-manipulation==0.5.0 --no-deps && \
-    pip3 install dm-robotics-controllers==0.5.0 --no-deps
+# Install dm_control and related packages for IK solver
+RUN pip3 install dm-control mujoco pybullet
+
+# Install open3d
+RUN pip3 install open3d
+
+# Install Python dependencies (use Aliyun mirror for speed, fallback to official for some packages)
+RUN pip3 install numpy opencv-python && \
+    pip3 install -i https://mirrors.aliyun.com/pypi/simple/ -e . || \
+    pip3 install -e .
+
+# Install dm-robotics packages without deps to avoid version conflicts
+RUN pip3 install dm-robotics-moma==0.5.0 --no-deps || true && \
+    pip3 install dm-robotics-transformations==0.5.0 --no-deps || true && \
+    pip3 install dm-robotics-agentflow==0.5.0 --no-deps || true && \
+    pip3 install dm-robotics-geometry==0.5.0 --no-deps || true && \
+    pip3 install dm-robotics-manipulation==0.5.0 --no-deps || true && \
+    pip3 install dm-robotics-controllers==0.5.0 --no-deps || true
 
 # using miniconda instead of anaconda so overwrite sh scripts
-RUN find /app/droid/franka -type f -name "launch_*.sh" -exec sed -i 's/anaconda/miniconda/g' {} \;
-RUN find /app/scripts/server -type f -name "launch_server.sh" -exec sed -i 's/anaconda/miniconda/g' {} \;
+RUN find /app/droid/franka -type f -name "launch_*.sh" -exec sed -i 's/anaconda/miniconda/g' {} \; || true
+RUN find /app/scripts/server -type f -name "launch_server.sh" -exec sed -i 's/anaconda/miniconda/g' {} \; || true
 
 # set absolute paths
-RUN find /app/droid/franka -type f -name "launch_*.sh" -exec sed -i 's|~|/root|g' {} \;
-RUN find /app/scripts/server -type f -name "launch_server.sh" -exec sed -i 's|~|/root|g' {} \;
+RUN find /app/droid/franka -type f -name "launch_*.sh" -exec sed -i 's|~|"/root"|g' {} \; || true
+RUN find /app/scripts/server -type f -name "launch_server.sh" -exec sed -i 's|~|"/root"|g' {} \; || true
 
 # start the server
-RUN chmod +x /app/scripts/server/launch_server.sh
-ENTRYPOINT ["/app/scripts/server/launch_server.sh"]
-
+RUN chmod +x /app/scripts/server/launch_server.sh 2>/dev/null || true
+ENTRYPOINT ["/bin/bash"]

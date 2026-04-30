@@ -41,6 +41,17 @@ class RobotIKSolver:
         self._cart_effector_6d.after_compile(self._arm.mjcf_model, self._physics)
 
     ### Inverse Kinematics ###
+    def cartesian_position_to_joint_position(self, cartesian_position, robot_state):
+        """直接用 IK 将笛卡尔目标位置转换为关节位置"""
+        qpos = np.array(robot_state["joint_positions"])
+        qvel = np.array(robot_state["joint_velocities"])
+
+        self._arm.update_state(self._physics, qpos, qvel)
+        self._cart_effector_6d.set_control(self._physics, cartesian_position)
+        joint_position = self._physics.bind(self._arm.actuators).ctrl.copy()
+
+        return joint_position
+
     def cartesian_velocity_to_joint_velocity(self, cartesian_velocity, robot_state):
         cartesian_delta = self.cartesian_velocity_to_delta(cartesian_velocity)
         qpos = np.array(robot_state["joint_positions"])
