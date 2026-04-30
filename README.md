@@ -1,53 +1,117 @@
-# The DROID Robot Platform
+# The DROID Robot Platform - Franka FR3 Edition
 
-This repository contains the code for setting up your DROID robot platform and using it to collect teleoperated demonstration data. This platform was used to collect the [DROID dataset](https://droid-dataset.github.io), a large, in-the-wild dataset of robot manipulations.
+This repository contains the code for setting up your DROID robot platform for **Franka Research 3 (FR3)** robots and using it to collect teleoperated demonstration data.
 
-If you are interested in using the DROID dataset for training robot policies, please check out our [policy learning repo](https://github.com/droid-dataset/droid_policy_learning).
-For more information about DROID, please see the following links: 
+Originally designed for Panda robots using polymetis, this fork has been adapted for FR3 with support for the modern [Franky](https://github.com/frankaemika/franky-python) SDK.
 
-[**[Homepage]**](https://droid-dataset.github.io) &ensp; [**[Documentation]**](https://droid-dataset.github.io/droid) &ensp; [**[Paper]**](https://arxiv.org/abs/2403.12945) &ensp; [**[Dataset Visualizer]**](https://droid-dataset.github.io/dataset.html).
+### Quick Links
+
+[**[Original DROID Homepage]**](https://droid-dataset.github.io) &ensp; [**[DROID Dataset]**](https://droid-dataset.github.io/dataset.html) &ensp; [**[Paper]**](https://arxiv.org/abs/2403.12945)
 
 ![](https://droid-dataset.github.io/droid/assets/index/droid_teaser.jpg)
 
 ---------
-## Setup Guide
 
-We assembled a step-by-step guide for setting up the DROID robot platform in our [developer documentation](https://droid-dataset.github.io/droid).
-This guide has been used to set up 18 DROID robot platforms over the course of the DROID dataset collection. Please refer to the steps in this guide for setting up your own robot. Specifically, you can follow these key steps:
+## Prerequisites
 
-1. [Hardware Assembly and Setup](https://droid-dataset.github.io/droid/docs/hardware-setup)
-2. [Software Installation and Setup](https://droid-dataset.github.io/droid/docs/software-setup)
-3. [Example Workflows to collect data or calibrate cameras](https://droid-dataset.github.io/droid/docs/example-workflows)
+### Hardware
+- **Franka Research 3** robot with control desk connected
+- **Zed camera** for visual data collection
+- **Robotiq 2F gripper** (optional, for grasping operations)
+- **NUC PC** (for robot control) - Ubuntu 22.04
+- **Laptop** (for teleoperation) - Ubuntu 22.04
 
-If you encounter issues during setup, please raise them as issues in this github repo.
+### Software
+- Python 3.10+
+- Franky SDK (`pip install franky-control`)
+- pyrobotiqgripper (for Robotiq gripper control)
+- dm-control, mujoco, pybullet (for IK solver)
 
 ---------
-## Franka FR3 Adaptation
 
-This fork has been adapted for **Franka Research 3 (FR3)** robots, replacing the original Panda-specific dependencies with a more flexible, modern implementation.
+## Getting Started
 
-### Key Changes
+### 1. Environment Variables
 
-| Component | Original | FR3 Version |
-|-----------|----------|-------------|
-| **Robot Control SDK** | polymetis (USB/PCIe) | [Franky](https://github.com/frankaemika/franky-python) (TCP/IP) |
-| **Base OS** | Ubuntu 18.04 | Ubuntu 22.04 |
-| **Python** | 3.7 | 3.10 |
+Configure your environment in `droid/misc/parameters.py` or via system environment variables:
 
-### New Features
-
-- **FrankyRobot** class (`droid/franka/franky_robot.py`) - TCP/IP control of FR3
-- **Robotiq 2F gripper** support via `pyrobotiqgripper`
-- **IK solver enhancements** - `cartesian_position_to_joint_position` method
-- **Zed camera robustness** - Skip unavailable cameras gracefully
-
-### Configuration
-
-Configuration for FR3 is done via environment variables:
-
+```bash
+export ROBOT_IP=172.16.0.3           # FR3 robot IP address
+export NUC_IP=172.16.0.2             # NUC control PC IP
+export LAPTOP_IP=172.16.0.1          # Laptop IP
+export ROBOT_TYPE=fr3                # Robot type
 ```
-ROBOT_IP=172.16.0.3                 # FR3 robot IP address
-GRIPPER_COM_PORT=/dev/ttyUSB0       # Robotiq gripper serial port (optional)
+
+### 2. Start Robot Server
+
+On the NUC control PC:
+```bash
+conda activate base
+cd scripts/server
+./launch_server.sh
+```
+
+### 3. Start Teleoperation Client
+
+On the laptop:
+```bash
+# Use the DROID client to connect to the robot server
+```
+
+For more details on the teleoperation interface, see the original DROID documentation.
+
+---------
+
+## Key Differences from Original DROID
+
+| Component | Original (Panda) | FR3 Version |
+|-----------|------------------|-------------|
+| **Robot Control** | polymetis (USB/PCIe) | [Franky](https://github.com/frankaemika/franky-python) (TCP/IP) |
+| **OS** | Ubuntu 18.04 | Ubuntu 22.04 |
+| **Python** | 3.7 | 3.10 |
+| **Gripper** | Franka gripper | Robotiq 2F (pyrobotiqgripper) |
+
+### New Components
+
+- **FrankyRobot** (`droid/franka/franky_robot.py`) - Main robot control class using Franky SDK
+- **IK enhancements** - `cartesian_position_to_joint_position` for direct IK solving
+- **Camera improvements** - Skip unavailable cameras during initialization
+
+### Configuration Example
+
+For Robotiq gripper control, set the serial port:
+```bash
+export GRIPPER_COM_PORT=/dev/ttyUSB0
 ```
 
 See `droid/misc/parameters.py` for all configurable parameters.
+
+---------
+
+## Docker Setup
+
+Dockerfiles are provided for both NUC and laptop environments. See:
+- `.docker/nuc/Dockerfile.nuc` - NUC control PC image
+- `.docker/laptop/Dockerfile.laptop` - Laptop teleop image
+
+Use the provided setup scripts:
+- `scripts/setup/nuc_setup.sh` - Setup NUC environment
+- `scripts/setup/laptop_setup.sh` - Setup laptop environment
+
+---------
+
+## Troubleshooting
+
+**Robot connection issues:**
+- Verify `ROBOT_IP` is correct and the robot is accessible
+- Check firewall settings allow TCP connections on port 4242
+
+**Gripper not responding:**
+- Confirm `GRIPPER_COM_PORT` is correct
+- Verify Robotiq gripper is powered on and connected
+
+**Camera not detected:**
+- Check Zed SDK installation on laptop
+- Run `zed_camera.py` directly to see which cameras are available
+
+For more details, see `docs/setup_records/` for our setup experience.
