@@ -12,14 +12,9 @@ camera_type_to_string_dict = {
     2: "fixed_camera",
 }
 
-camera_name_dict = {
-    hand_camera_id: "Hand Camera",
-    varied_camera_1_id: "Varied Camera #1",
-    varied_camera_2_id: "Varied Camera #2",
-}
-
 
 def get_camera_name(cam_id):
+    # camera_name_dict is imported from parameters.py
     if cam_id in camera_name_dict:
         return camera_name_dict[cam_id]
     return cam_id

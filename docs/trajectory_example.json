@@ -1,0 +1,94 @@
+{
+  "observation": {
+    "robot_state": {
+      "cartesian_position": [0.3597, 0.0001, 0.3863, -3.1412, 0.0006, 0.7857],
+      "gripper_position": 0.0118,
+      "joint_positions": [0.0002, -0.6278, 0.0001, -2.5135, -0.0001, 1.8850, -0.0001],
+      "joint_velocities": [0.0, -0.0012, 0.0, -0.0008, 0.0, 0.0011, 0.0],
+      "joint_torques_computed": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "motor_torques_measured": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_joint_torques_computed": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_joint_torques_computed_safened": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_command_successful": 1.0,
+      "prev_controller_latency_ms": 0
+    },
+    "controller_info": {
+      "controller_on": 1.0,
+      "failure": 0.0,
+      "movement_enabled": 1.0,
+      "success": 0.0
+    },
+    "camera_extrinsics": {
+      "19006932": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "19006932_left": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "19006932_right": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "19006932_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "19006932_left_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "19006932_right_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041_left": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041_right": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041_left_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37322041_right_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728_left": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728_right": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728_left_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "37818728_right_gripper_offset": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    },
+    "camera_intrinsics": {
+      "19006932_left": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]],
+      "19006932_right": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]],
+      "37322041_left": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]],
+      "37322041_right": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]],
+      "37818728_left": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]],
+      "37818728_right": [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
+    },
+    "camera_type": {},
+    "timestamp": {
+      "robot_state": {
+        "robot_timestamp_seconds": 1700000000,
+        "robot_timestamp_nanos": 0,
+        "read_start": 12345,
+        "read_end": 12350
+      },
+      "cameras": {
+        "19006932_estimated_capture": 12348,
+        "19006932_frame_received": 12349,
+        "19006932_read_start": 12345,
+        "19006932_read_end": 12350
+      },
+      "control": {
+        "control_start": 12300,
+        "policy_start": 12300,
+        "sleep_start": 12350,
+        "step_start": 12300,
+        "step_end": 12366
+      }
+    }
+  },
+  "action": {
+    "joint_position": [0.0002, -0.6278, 0.0001, -2.5135, -0.0001, 1.8850, -0.0001],
+    "joint_velocity": [0.0005, -0.0691, 0.0016, -0.0054, -0.0001, -0.0070, 0.0022],
+    "cartesian_position": [0.3597, 0.0001, 0.3863, -3.1412, 0.0006, 0.7857],
+    "cartesian_velocity": [0.0012, 0.0, 0.0008, -0.0003, 0.0, 0.0021],
+    "gripper_position": 0.0118,
+    "gripper_velocity": 0.0,
+    "target_cartesian_position": [0.3597, 0.0001, 0.3863, -3.1412, 0.0006, 0.7857],
+    "target_gripper_position": 0.0,
+    "robot_state": {
+      "cartesian_position": [0.3597, 0.0001, 0.3863, -3.1412, 0.0006, 0.7857],
+      "gripper_position": 0.0118,
+      "joint_positions": [0.0002, -0.6278, 0.0001, -2.5135, -0.0001, 1.8850, -0.0001],
+      "joint_velocities": [0.0, -0.0012, 0.0, -0.0008, 0.0, 0.0011, 0.0],
+      "joint_torques_computed": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "motor_torques_measured": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_joint_torques_computed": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_joint_torques_computed_safened": [-0.5, 2.1, -0.3, 8.4, -0.2, -1.2, 0.0],
+      "prev_command_successful": 1.0,
+      "prev_controller_latency_ms": 0
+    }
+  }
+}

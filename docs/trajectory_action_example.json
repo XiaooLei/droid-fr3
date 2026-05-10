@@ -1,0 +1,51 @@
+[
+  {
+    "timestep": 0,
+    "action": {
+      "joint_position": [0.0002, -0.6278, 0.0001, -2.5135, -0.0001, 1.8850, -0.0001],
+      "gripper_position": 0.0118
+    }
+  },
+  {
+    "timestep": 1,
+    "action": {
+      "joint_position": [0.0005, -0.6211, 0.0016, -2.5081, -0.0001, 1.8780, 0.0022],
+      "gripper_position": 0.0
+    }
+  },
+  {
+    "timestep": 2,
+    "action": {
+      "joint_position": [0.0006, -0.6090, 0.0075, -2.5010, -0.0063, 1.8680, 0.0056],
+      "gripper_position": 0.0
+    }
+  },
+  {
+    "timestep": 50,
+    "action": {
+      "joint_position": [0.0512, -0.2305, 0.0554, -2.4561, -0.0967, 1.9816, -0.0015],
+      "gripper_position": 0.0
+    }
+  },
+  {
+    "timestep": 100,
+    "action": {
+      "joint_position": [0.2747, 0.5093, 0.0601, -2.1741, -0.4108, 2.0985, 0.3244],
+      "gripper_position": 0.0
+    }
+  },
+  {
+    "timestep": 150,
+    "action": {
+      "joint_position": [0.3435, 0.5274, 0.0423, -2.2591, -0.7365, 2.5759, 0.1802],
+      "gripper_position": 0.0
+    }
+  },
+  {
+    "timestep": 199,
+    "action": {
+      "joint_position": [0.3438, 0.5274, 0.0424, -2.2591, -0.7364, 2.5759, 0.1802],
+      "gripper_position": 0.0
+    }
+  }
+]

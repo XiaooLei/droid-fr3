@@ -103,10 +103,10 @@ class CharucoDetector:
     def __init__(
         self,
         intrinsics_dict,
-        inlier_error_threshold=3.0,
-        reprojection_error_threshold=3.0,
-        num_img_threshold=10,
-        num_corner_threshold=10,
+        inlier_error_threshold=10.0,
+        reprojection_error_threshold=10.0,
+        num_img_threshold=5,
+        num_corner_threshold=3,
     ):
         # Set Parameters
         self.inlier_error_threshold = inlier_error_threshold
@@ -143,6 +143,7 @@ class CharucoDetector:
 
         # Find Charuco Corners #
         if len(corners) == 0:
+            print(f"[Calibration] REJECT: 0 Aruco markers found (after refine), rejected={len(rejected)}")
             return None
 
         num_corners_found, charuco_corners, charuco_ids = aruco.interpolateCornersCharuco(
@@ -150,6 +151,7 @@ class CharucoDetector:
         )
 
         if num_corners_found < self.num_corner_threshold:
+            print(f"[Calibration] REJECT: {num_corners_found} charuco corners < threshold {self.num_corner_threshold} (ids={ids})")
             return None
 
         return corners, charuco_corners, charuco_ids, img_size
@@ -157,7 +159,10 @@ class CharucoDetector:
     def add_sample(self, cam_id, image, pose):
         readings = self.process_image(image)
         if readings is None:
+            # already logged in process_image
             return
+        corners, charuco_corners, charuco_ids, img_size = readings
+        print(f"[Calibration] Sample ACCEPTED: {len(charuco_ids)} markers, {len(charuco_corners)} charuco corners")
         self._readings_dict[cam_id].append(readings)
         self._pose_dict[cam_id].append(pose)
 
@@ -171,6 +176,8 @@ class CharucoDetector:
         for i in range(len(readings)):
             corners, charuco_corners, charuco_ids, img_size = readings[i]
             assert img_size == fixed_image_size
+            if len(charuco_corners) < 4:
+                continue
             init_corners_all.append(charuco_corners)
             init_ids_all.append(charuco_ids)
             init_successes.append(i)
@@ -262,7 +269,7 @@ class CharucoDetector:
         if "charuco" in visual_type:
             image = aruco.drawDetectedCornersCharuco(image=image, charucoCorners=charuco_corners, charucoIds=charuco_ids)
 
-        if "axes" in visual_type:
+        if "axes" in visual_type and len(charuco_corners) >= 6:
             calibration_error, cameraMatrix, distCoeffs, rvecs, tvecs = aruco.calibrateCameraCharuco(
                 charucoCorners=[charuco_corners],
                 charucoIds=[charuco_ids],
@@ -303,6 +310,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         if target2cam_results is None:
             target2cam_results = self.calculate_target_to_cam(readings)
         if target2cam_results is None:
+            print("[Calibration] calculate_target_to_cam failed: PnP solve returned no valid results")
             return None
 
         R_target2cam, t_target2cam, successes = target2cam_results
@@ -340,6 +348,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         if target2cam_results is None:
             target2cam_results = self.calculate_target_to_cam(readings)
         if target2cam_results is None:
+            print("[Calibration] calculate_target_to_cam failed: PnP solve returned no valid results")
             return None
 
         R_target2cam, t_target2cam, successes = target2cam_results
@@ -374,6 +383,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         # Get Eval Target2Cam Transformations #
         eval_results = self.calculate_target_to_cam(eval_readings, train=False)
         if eval_results is None:
+            print("[Calibration] PnP solve failed (eval): no valid detections")
             return None
         eval_R_target2cam, eval_t_target2cam, eval_successes = eval_results
         rmats, tvecs = [], []
@@ -381,6 +391,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         # Get Train Target2Cam Transformations #
         train_results = self.calculate_target_to_cam(train_readings)
         if train_results is None:
+            print("[Calibration] PnP solve failed (train): not enough valid samples")
             return None
 
         # Use Training Data For Calibrations #
@@ -418,6 +429,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         # Split Into Train / Test #
         readings = self._readings_dict[cam_id]
         if len(readings) == 0:
+            print("[Calibration] No valid samples - all images rejected during collection")
             return False
         poses = np.array(self._pose_dict[cam_id])
         ind = np.random.choice(len(readings), size=len(readings), replace=False)
@@ -431,6 +443,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         # Calculate Approximate Gripper2Base Transformations #
         results = self._calculate_gripper_to_base(train_readings, train_poses, eval_readings=test_readings)
         if results is None:
+            print("[Calibration] Hand-eye calibration (calibrateHandEye) failed")
             return False
         approx_poses, successes = results
         test_poses = np.array(test_poses)[successes]
@@ -444,9 +457,10 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
         lin_success = np.all(lin_error < self.lin_error_threshold)
         rot_success = np.all(rot_error < self.rot_error_threshold)
 
-        # print('Pose Std: ', poses.std(axis=0))
-        # print('Lin Error: ', lin_error)
-        # print('Rot Error: ', rot_error)
+        print(f"[Calibration] Total samples: {len(readings)}, Train: {len(train_ind)}, Test: {len(test_ind)}, Valid test: {len(test_poses)}")
+        print(f"[Calibration] Lin error (thresh={self.lin_error_threshold*1000:.1f}mm): {lin_error*1000} mm  {'PASS' if lin_success else 'FAIL'}")
+        print(f"[Calibration] Rot error (thresh={self.rot_error_threshold:.3f}rad): {rot_error} rad  {'PASS' if rot_success else 'FAIL'}")
+        print(f"[Calibration] OVERALL: {'SUCCESS' if (lin_success and rot_success) else 'FAILED'}")
 
         return lin_success and rot_success
 
@@ -454,7 +468,7 @@ class ThirdPersonCameraCalibrator(CharucoDetector):
 class HandCameraCalibrator(CharucoDetector):
     def __init__(self, camera, lin_error_threshold=1e-3, rot_error_threshold=1e-2, train_percentage=0.7, **kwargs):
         self.lin_error_threshold = lin_error_threshold
-        self.rot_error_threshold = rot_error_threshold
+        self.rot_error_threshold = rot_error_threshold 
         self.train_percentage = train_percentage
         super().__init__(camera, **kwargs)
 
@@ -471,6 +485,7 @@ class HandCameraCalibrator(CharucoDetector):
         if target2cam_results is None:
             target2cam_results = self.calculate_target_to_cam(readings)
         if target2cam_results is None:
+            print("[Calibration] calculate_target_to_cam failed: PnP solve returned no valid results")
             return None
 
         R_target2cam, t_target2cam, successes = target2cam_results
@@ -506,6 +521,7 @@ class HandCameraCalibrator(CharucoDetector):
         if target2cam_results is None:
             target2cam_results = self.calculate_target_to_cam(readings)
         if target2cam_results is None:
+            print("[Calibration] calculate_target_to_cam failed: PnP solve returned no valid results")
             return None
 
         R_target2cam, t_target2cam, successes = target2cam_results
@@ -538,6 +554,7 @@ class HandCameraCalibrator(CharucoDetector):
         # Get Eval Target2Cam Transformations #
         eval_results = self.calculate_target_to_cam(eval_readings, train=False)
         if eval_results is None:
+            print("[Calibration] PnP solve failed (eval): no valid detections")
             return None
         eval_R_target2cam, eval_t_target2cam, eval_successes = eval_results
         rmats, tvecs = [], []
@@ -545,6 +562,7 @@ class HandCameraCalibrator(CharucoDetector):
         # Get Train Target2Cam Transformations #
         train_results = self.calculate_target_to_cam(train_readings)
         if train_results is None:
+            print("[Calibration] PnP solve failed (train): not enough valid samples")
             return None
 
         # Use Training Data For Calibrations #
@@ -583,6 +601,7 @@ class HandCameraCalibrator(CharucoDetector):
         # Split Into Train / Test #
         readings = self._readings_dict[cam_id]
         if len(readings) == 0:
+            print("[Calibration] No valid samples - all images rejected during collection")
             return False
         poses = np.array(self._pose_dict[cam_id])
         ind = np.random.choice(len(readings), size=len(readings), replace=False)
@@ -596,6 +615,7 @@ class HandCameraCalibrator(CharucoDetector):
         # Calculate Approximate Gripper2Base Transformations #
         results = self._calculate_gripper_to_base(train_readings, train_poses, eval_readings=test_readings)
         if results is None:
+            print("[Calibration] Hand-eye calibration (calibrateHandEye) failed")
             return False
         approx_poses, successes = results
         test_poses = np.array(test_poses)[successes]
@@ -609,8 +629,9 @@ class HandCameraCalibrator(CharucoDetector):
         lin_success = np.all(lin_error < self.lin_error_threshold)
         rot_success = np.all(rot_error < self.rot_error_threshold)
 
-        # print('Pose Std: ', poses.std(axis=0))
-        # print('Lin Error: ', lin_error)
-        # print('Rot Error: ', rot_error)
+        print(f"[Calibration] Total samples: {len(readings)}, Train: {len(train_ind)}, Test: {len(test_ind)}, Valid test: {len(test_poses)}")
+        print(f"[Calibration] Lin error (thresh={self.lin_error_threshold*1000:.1f}mm): {lin_error*1000} mm  {'PASS' if lin_success else 'FAIL'}")
+        print(f"[Calibration] Rot error (thresh={self.rot_error_threshold:.3f}rad): {rot_error} rad  {'PASS' if rot_success else 'FAIL'}")
+        print(f"[Calibration] OVERALL: {'SUCCESS' if (lin_success and rot_success) else 'FAILED'}")
 
         return lin_success and rot_success

@@ -73,6 +73,7 @@ class RobotEnv(gym.Env):
         self._robot.update_joints(self.reset_joints, velocity=False, blocking=True, cartesian_noise=noise)
 
     def update_robot(self, action, action_space="cartesian_velocity", gripper_action_space=None, blocking=False):
+        print(f"[PC2] update_robot: action_space={action_space}, action={action}, shape={np.shape(action)}")
         action_info = self._robot.update_command(
             action,
             action_space=action_space,

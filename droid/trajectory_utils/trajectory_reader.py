@@ -27,6 +27,8 @@ def get_hdf5_length(hdf5_file, keys_to_ignore=[]):
         curr_data = hdf5_file[key]
         if isinstance(curr_data, h5py.Group):
             curr_length = get_hdf5_length(curr_data, keys_to_ignore=keys_to_ignore)
+            if curr_length is None:
+                continue
         elif isinstance(curr_data, h5py.Dataset):
             curr_length = len(curr_data)
         else:

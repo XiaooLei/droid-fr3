@@ -25,12 +25,10 @@ from droid.robot_ik.robot_ik_solver import RobotIKSolver
 
 # UTILITY SPECIFIC IMPORTS
 from droid.misc.transformations import add_poses, euler_to_quat, pose_diff, quat_to_euler
-
+import os
 
 class FrankyRobot:
     """Franky-based robot control for Franka robots."""
-
-import os
 
     ROBOT_IP = os.environ.get("ROBOT_IP", "172.16.0.3")  # FR3 Robot IP from env
 
@@ -59,7 +57,7 @@ import os
             self._robot.relative_dynamics_factor = 0.1  # Start with 10% speed
 
         # Gripper initialization using pyRobotiqGripper
-        gripper_com_port = os.environ.get("GRIPPER_COM_PORT")
+        gripper_com_port = os.environ.get("GRIPPER_COM_PORT", "/dev/ttyUSB0")
         if self._gripper is None and HAS_ROBOTIQ and gripper_com_port:
             try:
                 self._gripper = rq.RobotiqGripper(com_port=gripper_com_port)
@@ -133,8 +131,14 @@ import os
             raise RuntimeError("Robot not initialized")
 
         positions = np.array(positions)
+        # Handle 8-element action (7 joints + 1 gripper)
+        if len(positions) == 8:
+            gripper_pos = positions[7]
+            positions = positions[:7]
+            self.update_gripper(gripper_pos, velocity=False)
+
         if len(positions) != 7:
-            raise ValueError("Expected 7 joint positions")
+            raise ValueError(f"Expected 7 joint positions, got {len(positions)}")
 
         # Set speed
         self._robot.relative_dynamics_factor = speed_factor
@@ -145,9 +149,21 @@ import os
         # Execute motion (asynchronous so new motions preempt old ones automatically)
         try:
             self._robot.move(motion, asynchronous=True)
-        except franky.ControlException:
-            # Async move preempted by new command - this is OK for teleop
-            pass
+        except franky.ControlException as e:
+            if "Reflex" in str(e):
+                print(f"[FRANKY] Reflex detected, recovering...")
+                try:
+                    self._robot.recover_from_errors()
+                    self._robot.move(motion, asynchronous=True)
+                    print(f"[FRANKY] Recovery successful.")
+                except Exception as re:
+                    print(f"[FRANKY] Recovery failed: {re}")
+                    return False
+            else:
+                print(f"[FRANKY] ControlException (preempted, OK): {e}")
+        except Exception as e:
+            print(f"[FRANKY] move_to_joint_positions FAILED: {type(e).__name__}: {e}")
+            return False
 
         # Update current positions
         with self._joint_position_lock:
@@ -191,7 +207,6 @@ import os
         # 1 (open) → 255, 0 (closed) → 0
         target_bits = int(target_pos * 255)
 
-        print(f"[FRANKY] update_gripper: cmd={command}, velocity={velocity}, target_pos={target_pos:.3f}, target_bits={target_bits}, blocking={blocking}")
 
         try:
             self._gripper.realTimeMove(target_bits)
@@ -206,16 +221,20 @@ import os
             action_space=action_space,
             gripper_action_space=gripper_action_space
         )
-        
+
         # Execute based on action_space type
         if "cartesian" in action_space:
             joint_position = action_dict.get("joint_position")
             if joint_position is not None:
                 self.update_joints(joint_position, velocity=False, blocking=blocking)
+            else:
+                print(f"[FRANKY] update_command: action_space={action_space}, joint_position=None (IK failed?)")
         elif "joint" in action_space:
             joint_position = action_dict.get("joint_position")
             if joint_position is not None:
                 self.update_joints(joint_position, velocity=False, blocking=blocking)
+            else:
+                print(f"[FRANKY] update_command: action_space={action_space}, joint_position=None")
 
         # Update gripper
         gripper_pos = action_dict.get("gripper_position")
@@ -362,7 +381,6 @@ import os
             # Direct position mapping: trigger directly maps to target position
             trigger_value = float(action[-1])
             target_pos = trigger_value  # No inversion - press=close, release=open
-            print(f"[FRANKY] gripper: trigger={trigger_value:.3f}, target={target_pos:.3f}")
             action_dict["gripper_position"] = float(np.clip(target_pos, 0, 1))
         else:
             action_dict["gripper_position"] = float(np.clip(action[-1], 0, 1))

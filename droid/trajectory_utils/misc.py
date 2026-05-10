@@ -161,6 +161,8 @@ def calibrate_camera(
     else:
         calibrator = ThirdPersonCameraCalibrator(intrinsics_dict)
 
+    print(f"[Calibration] Camera: {camera_id} (serial: {camera.serial_number}), hand_camera={hand_camera}")
+
     if reset_robot:
         env.reset()
     controller.reset_state()
@@ -206,10 +208,38 @@ def calibrate_camera(
         if end_calibration:
             return False
 
+    # Manual adjustment phase: let user move robot to desired position before starting trajectory
+    print("[Calibration] Adjustment phase: move robot so board is visible. Press A to start, B to cancel.")
+    while True:
+        controller_info = controller.get_info()
+        start_time = time.time()
+
+        state, _ = env.get_state()
+        cam_obs, _ = env.read_cameras()
+
+        if obs_pointer is not None:
+            obs_pointer.update(cam_obs)
+
+        action = controller.forward({"robot_state": state})
+        action[-1] = 0
+
+        comp_time = time.time() - start_time
+        sleep_left = (1 / env.control_hz) - comp_time
+        if sleep_left > 0:
+            time.sleep(sleep_left)
+
+        env.step(action)
+
+        if controller_info["success"]:
+            break
+        if controller_info["failure"]:
+            return False
+
     # Collect Data #
     time.time()
     pose_origin = state["cartesian_position"]
     i = 0
+    print(f"[Calibration] Starting collection loop. image_freq={image_freq}, total_steps~{int(2*np.pi/step_size)}")
 
     while True:
         # Check For Termination #
@@ -257,7 +287,18 @@ def calibrate_camera(
         cycle_complete = (i * step_size) >= (2 * np.pi)
         if cycle_complete:
             break
+
+        # Progress log every 50 steps
+        if i % 50 == 0:
+            # Count valid samples across all cam_ids in readings_dict
+            total = sum(len(v) for v in calibrator._readings_dict.values())
+            print(f"[Calibration] Progress: step {i}, collected {total} valid samples")
+
         i += 1
+
+    # Final summary before validation
+    total_collected = sum(len(v) for v in calibrator._readings_dict.values())
+    print(f"[Calibration] Collection complete! Total steps: {i}, Valid samples: {total_collected}")
 
     # SAVE INTO A JSON
     for full_cam_id in cam_obs["image"]:

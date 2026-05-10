@@ -12,6 +12,29 @@ except ModuleNotFoundError:
     print("WARNING: You have not setup the ZED cameras, and currently cannot use them")
 
 
+def _pretest_open(serial_number):
+    """Attempt to open camera to verify it's truly available.
+
+    Some cameras report AVAILABLE via get_device_list() but actually fail to open
+    (e.g. contact/intermittent USB issues). This pre-check avoids later RuntimeError.
+    """
+    try:
+        cam = sl.Camera()
+        params = sl.InitParameters(**standard_params)
+        params.set_from_serial_number(int(serial_number))
+        params.depth_mode = sl.DEPTH_MODE.NONE
+        status = cam.open(params)
+        if status == sl.ERROR_CODE.SUCCESS:
+            cam.close()
+            return True
+        else:
+            print(f"[ZedCamera] Pre-test FAIL: camera {serial_number} open status={status}")
+            return False
+    except Exception as e:
+        print(f"[ZedCamera] Pre-test FAIL: camera {serial_number} exception: {e}")
+        return False
+
+
 def gather_zed_cameras():
     all_zed_cameras = []
     try:
@@ -19,11 +42,18 @@ def gather_zed_cameras():
     except NameError:
         return []
 
-    for cam in cameras:
+    for cam_info in cameras:
         # Skip cameras that are not available
-        if cam.camera_state != sl.CAMERA_STATE.AVAILABLE:
+        if cam_info.camera_state != sl.CAMERA_STATE.AVAILABLE:
+            print(f"[ZedCamera] Skip camera {cam_info.serial_number}: state={cam_info.camera_state}")
             continue
-        cam = ZedCamera(cam)
+        # Pre-test: verify the camera can actually be opened
+        if not _pretest_open(cam_info.serial_number):
+            raise RuntimeError(
+                f"[ZedCamera] Camera {cam_info.serial_number} failed pre-test open. "
+                "Check USB connection and ZED calibration."
+            )
+        cam = ZedCamera(cam_info)
         all_zed_cameras.append(cam)
 
     return all_zed_cameras

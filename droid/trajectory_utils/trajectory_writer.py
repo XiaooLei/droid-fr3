@@ -16,6 +16,9 @@ def write_dict_to_hdf5(hdf5_file, data_dict, keys_to_ignore=["image", "depth", "
         # Pass Over Specified Keys #
         if key in keys_to_ignore:
             continue
+        if not key:
+            print(f"[write_dict_to_hdf5] SKIP: empty string key, data_dict keys={list(data_dict.keys())}")
+            continue
 
         # Examine Data #
         curr_data = data_dict[key]
@@ -30,18 +33,34 @@ def write_dict_to_hdf5(hdf5_file, data_dict, keys_to_ignore=["image", "depth", "
             write_dict_to_hdf5(hdf5_file[key], curr_data)
             continue
 
+        # Handle numpy arrays - convert object dtype to something HDF5 can handle
+        if isinstance(curr_data, np.ndarray) and curr_data.dtype.kind == 'O':
+            # object array - could contain strings or None or mixed types
+            try:
+                curr_data = np.array([x if x is not None else 0 for x in curr_data])
+            except Exception:
+                curr_data = np.array([str(x) for x in curr_data])
+
         # Make Room For Data #
         if key not in hdf5_file:
             if dtype != np.ndarray:
                 dshape = ()
+                dtype_for_hdf5 = np.dtype('float64')
             else:
-                dtype, dshape = curr_data.dtype, curr_data.shape
-            hdf5_file.create_dataset(key, (1, *dshape), maxshape=(None, *dshape), dtype=dtype)
+                dtype_for_hdf5, dshape = curr_data.dtype, curr_data.shape
+            try:
+                hdf5_file.create_dataset(key, (1, *dshape), maxshape=(None, *dshape), dtype=dtype_for_hdf5)
+            except Exception as e:
+                print(f"[write_dict_to_hdf5] ERROR creating dataset for key '{key}': {e}, dtype={dtype_for_hdf5}, dshape={dshape}")
+                continue
         else:
             hdf5_file[key].resize(hdf5_file[key].shape[0] + 1, axis=0)
 
         # Save Data #
-        hdf5_file[key][-1] = curr_data
+        try:
+            hdf5_file[key][-1] = curr_data
+        except Exception as e:
+            print(f"[write_dict_to_hdf5] ERROR writing key '{key}': {e}, dtype={curr_data.dtype if isinstance(curr_data, np.ndarray) else type(curr_data)}, data_preview={str(curr_data)[:100]}")
 
 
 class TrajectoryWriter:
@@ -80,7 +99,10 @@ class TrajectoryWriter:
                 data = queue.get(timeout=1)
             except Empty:
                 continue
-            writer(data)
+            try:
+                writer(data)
+            except Exception as e:
+                print(f"[TrajectoryWriter] ERROR writing to HDF5: {e}")
             queue.task_done()
 
     def _update_video_files(self, timestep):
@@ -116,6 +138,7 @@ class TrajectoryWriter:
 
         # Finish Remaining Jobs #
         [queue.join() for queue in self._queue_dict.values()]
+        self._hdf5_file.close()
 
         # Close Video Writers #
         for video_id in self._video_writers:
