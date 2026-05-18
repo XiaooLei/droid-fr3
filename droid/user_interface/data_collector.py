@@ -77,6 +77,10 @@ class DataCollecter:
         info["time"] = self.last_traj_name
         info["robot_serial_number"] = "{0}-{1}".format(robot_type, robot_serial_number)
         info["version_number"] = droid_version
+        if hasattr(self, "control_source"):
+            info["control_source"] = self.control_source
+        if hasattr(self.controller, "get_metadata"):
+            info.update(self.controller.get_metadata())
 
         if practice or (not self.save_data):
             save_filepath = None

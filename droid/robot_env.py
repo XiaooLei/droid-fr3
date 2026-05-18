@@ -73,17 +73,29 @@ class RobotEnv(gym.Env):
         self._robot.update_joints(self.reset_joints, velocity=False, blocking=True, cartesian_noise=noise)
 
     def update_robot(self, action, action_space="cartesian_velocity", gripper_action_space=None, blocking=False):
-        print(f"[PC2] update_robot: action_space={action_space}, action={action}, shape={np.shape(action)}")
         action_info = self._robot.update_command(
             action,
             action_space=action_space,
             gripper_action_space=gripper_action_space,
             blocking=blocking
         )
+        action_info = self._sanitize_action_dict(action_info)
         return action_info
 
     def create_action_dict(self, action):
-        return self._robot.create_action_dict(action)
+        action_info = self._robot.create_action_dict(
+            action,
+            action_space=self.action_space,
+            gripper_action_space=self.gripper_action_space,
+        )
+        return self._sanitize_action_dict(action_info)
+
+    def _sanitize_action_dict(self, action_info):
+        if "joint_position" in action_info and len(action_info["joint_position"]) == 8:
+            action_info["joint_position"] = action_info["joint_position"][:7]
+        if "joint_velocity" in action_info and len(action_info["joint_velocity"]) == 8:
+            action_info["joint_velocity"] = action_info["joint_velocity"][:7]
+        return action_info
 
     def read_cameras(self):
         return self.camera_reader.read_cameras()

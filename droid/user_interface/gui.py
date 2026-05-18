@@ -24,12 +24,13 @@ from droid.user_interface.text import *
 
 
 class RobotGUI(tk.Tk):
-    def __init__(self, robot=None, fullscreen=False, right_controller=True):
+    def __init__(self, robot=None, fullscreen=False, right_controller=True, control_source="vr"):
         # Initialize #
         super().__init__()
         self.geometry("1500x1200")
         self.attributes("-fullscreen", fullscreen)
         self.bind("<Escape>", lambda e: self.destroy())
+        self.control_source = control_source
         if right_controller:
             self.oculus_controller = "right"
             self.button_a = "A"
@@ -84,6 +85,10 @@ class RobotGUI(tk.Tk):
         # Listen For Robot Reset #
         self.enter_presses = 0
         self.bind("<KeyPress-Return>", self.robot_reset, add="+")
+        if hasattr(self.robot.controller, "handle_key_press"):
+            self.bind_all("<KeyPress>", self.robot.controller.handle_key_press, add="+")
+        if hasattr(self.robot.controller, "handle_key_release"):
+            self.bind_all("<KeyRelease>", self.robot.controller.handle_key_release, add="+")
         self.refresh_enter_variable()
 
         # Listen For Robot Controls #
@@ -1157,7 +1162,12 @@ class CameraPage(tk.Frame):
         title = camera_page_title[self.mode]
 
         instr = camera_page_instr[self.mode]
-        if self.controller.oculus_controller == "left":
+        if self.controller.control_source == "master":
+            if self.mode == "traj":
+                instr = "Move the master arm to control the robot. Press 'A' to mark a success, or 'B' to mark a failure"
+            elif self.mode == "practice_traj":
+                instr = "Move the master arm to control the robot. Press 'A' or 'B' to end the trial run"
+        elif self.controller.oculus_controller == "left":
             if self.mode == 'traj' or self.mode == 'practice_traj':
                 instr = instr.replace("A", "X")
                 instr = instr.replace("B", "Y")

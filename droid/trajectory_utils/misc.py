@@ -102,7 +102,15 @@ def collect_trajectory(
         # Step Environment #
         control_timestamps["control_start"] = time_ms()
         if skip_action:
-            action_info = env.create_action_dict(np.zeros_like(action))
+            noop_action = np.zeros_like(action)
+            if "position" in env.action_space:
+                robot_state = obs["robot_state"]
+                if "joint" in env.action_space:
+                    noop_action[:7] = robot_state["joint_positions"]
+                else:
+                    noop_action[:-1] = robot_state["cartesian_position"]
+                noop_action[-1] = robot_state["gripper_position"]
+            action_info = env.create_action_dict(noop_action)
         else:
             action_info = env.step(action)
         action_info.update(controller_action_info)
@@ -347,6 +355,8 @@ def replay_trajectory(
         # Get Action In Desired Action Space #
         arm_action = timestep["action"][env.action_space]
         gripper_action = timestep["action"][gripper_key]
+        if "joint" in env.action_space and len(arm_action) == 8:
+            arm_action = arm_action[:7]
         action = np.concatenate([arm_action, [gripper_action]])
         controller_info = timestep["observation"]["controller_info"]
         movement_enabled = controller_info.get("movement_enabled", True)

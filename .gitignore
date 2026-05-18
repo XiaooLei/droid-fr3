@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 *.pyo
 droid/scripts.txt
+dynamixel_sample_test/
+dynamixel_sample_test.zip

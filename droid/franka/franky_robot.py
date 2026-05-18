@@ -200,11 +200,10 @@ class FrankyRobot:
             target_pos = self._gripper_width + gripper_delta
             target_pos = float(np.clip(target_pos, 0, 1))
         else:
-            # command is 0-1 normalized, 1=open, 0=closed
+            # DROID convention: 0=open, 1=closed.
             target_pos = float(np.clip(command, 0, 1))
 
-        # Convert normalized position (0-1) to gripper command (0-255)
-        # 1 (open) → 255, 0 (closed) → 0
+        # Convert normalized closed amount (0-1) to Robotiq command (0-255).
         target_bits = int(target_pos * 255)
 
 
@@ -372,7 +371,7 @@ class FrankyRobot:
         velocity = "velocity" in action_space
 
         if gripper_action_space is None:
-            gripper_action_space = "velocity"
+            gripper_action_space = "velocity" if velocity else "position"
 
         # Handle gripper action
         if gripper_action_space == "velocity":
@@ -414,6 +413,6 @@ class FrankyRobot:
                 joint_delta = self._ik_solver.joint_velocity_to_delta(action[:7])
                 action_dict["joint_position"] = (joint_delta + np.array(robot_state["joint_positions"])).tolist()
             else:
-                action_dict["joint_position"] = action.tolist()
+                action_dict["joint_position"] = action[:7].tolist()
 
         return action_dict
